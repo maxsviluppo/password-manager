@@ -171,7 +171,8 @@ function initializeAppListeners() {
                 {
                     user_id: currentUser.id,
                     service_name: service,
-                    password: password
+                    password: password,
+                    app_type: 'password-manager'
                 }
             ])
             .select();
@@ -202,11 +203,11 @@ function initializeAppListeners() {
     const deleteAccountBtn = document.getElementById('deleteAccountBtn');
     if (deleteAccountBtn) {
         deleteAccountBtn.addEventListener('click', async () => {
-            const firstConfirm = confirm('⚠️ ATTENZIONE! Stai per eliminare il tuo account e TUTTE le password salvate.\n\nQuesta azione è irreversibile. Sei sicuro di voler continuare?');
+            const firstConfirm = confirm('⚠️ ATTENZIONE! Stai per eliminare TUTTI i dati salvati in questa app (Password Manager).\n\nIl tuo account rimarrà attivo per altre applicazioni, ma tutte le password salvate qui andranno perse.\n\nSei sicuro di voler continuare?');
 
             if (!firstConfirm) return;
 
-            const secondConfirm = confirm('🚨 ULTIMA CONFERMA!\n\nL\'account verrà eliminato definitivamente. Confermi?');
+            const secondConfirm = confirm('🚨 ULTIMA CONFERMA!\n\nConfermi la cancellazione definitiva di tutte le password?');
 
             if (!secondConfirm) return;
 
@@ -214,24 +215,18 @@ function initializeAppListeners() {
             deleteAccountBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) throw new Error('Sessione non valida');
+                // Delete only passwords for this app
+                const { error } = await supabase
+                    .from('passwords')
+                    .delete()
+                    .eq('user_id', currentUser.id)
+                    .eq('app_type', 'password-manager');
 
-                const response = await fetch('https://zhgpccmzgyertwnvyiaz.supabase.co/functions/v1/delete-account', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${session.access_token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || 'Errore durante l\'eliminazione');
+                if (error) {
+                    throw new Error(error.message);
                 }
 
-                alert('Account eliminato con successo. Verrai reindirizzato alla pagina di login.');
+                alert('Dati eliminati con successo. Verrai disconnesso.');
                 await supabase.auth.signOut();
                 window.location.reload();
 
@@ -263,7 +258,8 @@ function initializeAppListeners() {
                 const { error } = await supabase
                     .from('passwords')
                     .delete()
-                    .eq('user_id', currentUser.id);
+                    .eq('user_id', currentUser.id)
+                    .eq('app_type', 'password-manager');
 
                 if (error) {
                     throw new Error(error.message);
@@ -295,6 +291,7 @@ async function loadPasswords() {
         .from('passwords')
         .select('*')
         .eq('user_id', currentUser.id)
+        .eq('app_type', 'password-manager')
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -413,7 +410,8 @@ function showApp() {
             const { error } = await supabase
                 .from('passwords')
                 .delete()
-                .eq('user_id', currentUser.id);
+                .eq('user_id', currentUser.id)
+                .eq('app_type', 'password-manager');
 
 
             if (error) {
