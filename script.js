@@ -244,6 +244,44 @@ function initializeAppListeners() {
         });
     }
 
+    // Delete All Passwords
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
+    if (deleteAllBtn) {
+        deleteAllBtn.addEventListener('click', async () => {
+            const firstConfirm = confirm('⚠️ ATTENZIONE! Stai per eliminare TUTTE le password salvate.\n\nQuesta azione è irreversibile. Sei sicuro di voler continuare?');
+
+            if (!firstConfirm) return;
+
+            const secondConfirm = confirm('🚨 ULTIMA CONFERMA!\n\nTutte le password verranno eliminate definitivamente. Confermi?');
+
+            if (!secondConfirm) return;
+
+            deleteAllBtn.disabled = true;
+            deleteAllBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Eliminazione...';
+
+            try {
+                const { error } = await supabase
+                    .from('passwords')
+                    .delete()
+                    .eq('user_id', currentUser.id);
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                showToast('Tutte le password sono state eliminate!', 'success');
+                loadPasswords();
+
+            } catch (error) {
+                console.error('Errore:', error);
+                showToast('Errore: ' + error.message, 'error');
+            } finally {
+                deleteAllBtn.disabled = false;
+                deleteAllBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Elimina Tutto';
+            }
+        });
+    }
+
     // Handle Enter key
     passwordInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') saveBtn.click();
